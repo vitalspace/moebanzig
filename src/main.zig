@@ -1,4 +1,5 @@
 const std = @import("std");
+const bn = @import("binarySearch.zig");
 
 pub const Moeban = struct {
     db_name: []const u8,
@@ -56,30 +57,6 @@ pub const Moeban = struct {
     }
 };
 
-const binarySearchById = struct {
-    fn search(items: anytype, target: i32) ?usize {
-        var left: usize = 0;
-        var right = items.len;
-
-        while (left < right) {
-            const mid = left + (right - left) / 2;
-            if (items[mid].object.get("id").?.integer == target) {
-                return mid;
-            } else if (items[mid].object.get("id").?.integer < target) {
-                left = mid + 1;
-            } else {
-                right = mid;
-            }
-        }
-        return null;
-    }
-
-    fn compare(context: void, a: std.json.Value, b: std.json.Value) bool {
-        _ = context;
-        return a.object.get("id").?.integer < b.object.get("id").?.integer;
-    }
-};
-
 pub const Model = struct {
     db: Moeban,
     model_name: []const u8,
@@ -104,19 +81,20 @@ pub const Model = struct {
     }
 
     pub fn findOne(this: @This(), comptime key: anytype, comptime target: anytype) ![]const u8 {
-        _ = key;
         const object = this.object;
         var items = object.value.object.get(this.model_name).?.array.items;
-        std.mem.sort(std.json.Value, items, {}, binarySearchById.compare);
+        const searchResult = bn.BinarySearch{ .items = items, .key = key, .target = target };
+        std.mem.sort(std.json.Value, items, searchResult, bn.BinarySearch.compareById);
 
         switch (@typeInfo(@TypeOf(target))) {
             .ComptimeInt => {
-                const item = binarySearchById.search(items, target);
+                const item = searchResult.searchById();
                 const result = try std.json.stringifyAlloc(this.allocator, items[item.?], .{ .whitespace = .indent_2 });
                 return result;
             },
             .Pointer => {
                 std.debug.print("puta cadena", .{});
+                return "alv";
             },
             .Bool => {
                 // manejar int
@@ -151,7 +129,7 @@ pub fn main() !void {
     defer allocator.free(str);
     // std.debug.print("{s}\n", .{str});
 
-    const find = try user.findOne("id", 4);
+    const find = try user.findOne("age", 23);
     defer allocator.free(find);
-    // std.debug.print("{s}\n", .{find});
+    std.debug.print("{s}\n", .{find});
 }

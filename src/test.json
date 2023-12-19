@@ -2,27 +2,39 @@
   "users": [
     {
       "id": 2,
-      "name": "lucas"
+      "name": "lucas",
+      "age" : 23
     },
     {
       "id": 1,
-      "name": "ivan"
+      "name": "ivan",
+      "age" : 20
     },
     {
       "id": 4,
-      "name": "carlos"
+      "name": "carlos",
+      "age" : 25
     },
     {
       "id": 5,
-      "name": "saul"
+      "name": "saul",
+      "age" : 19
     },
     {
       "id": 7,
-      "name": "celeste"
+      "name": "celeste",
+      "age" : 18
+
     },
     {
       "id": 6,
-      "name": "samanta"
+      "name": "samanta",
+      "age" : 28
+    },
+    {
+      "id": 20,
+      "name": "luis",
+      "age" : 22
     }
   ]
 }
