@@ -83,18 +83,22 @@ pub const Model = struct {
     pub fn findOne(this: @This(), comptime key: anytype, comptime target: anytype) ![]const u8 {
         const object = this.object;
         var items = object.value.object.get(this.model_name).?.array.items;
-        const searchResult = bn.BinarySearch{ .items = items, .key = key, .target = target };
-        std.mem.sort(std.json.Value, items, searchResult, bn.BinarySearch.compareById);
+        const searchResult = bn.BinarySearch{ .items = items, .key = key };
 
         switch (@typeInfo(@TypeOf(target))) {
             .ComptimeInt => {
-                const item = searchResult.searchById();
+                std.mem.sort(std.json.Value, items, searchResult, bn.BinarySearch.compareById);
+                const item = searchResult.searchByInt(target);
+                if (item == null) return error.ObjectDoesNotExists;
                 const result = try std.json.stringifyAlloc(this.allocator, items[item.?], .{ .whitespace = .indent_2 });
                 return result;
             },
             .Pointer => {
-                std.debug.print("puta cadena", .{});
-                return "alv";
+                std.mem.sort(std.json.Value, items, searchResult, bn.BinarySearch.compareObjectsByStrings);
+                const item = searchResult.searchByString(target);
+                if (item == null) return error.ObjectDoesNotExists;
+                const result = try std.json.stringifyAlloc(this.allocator, items[item.?], .{ .whitespace = .indent_2 });
+                return result;
             },
             .Bool => {
                 // manejar int
@@ -106,6 +110,22 @@ pub const Model = struct {
             },
         }
     }
+
+    // pub fn findOne(this: @This(), comptime key: anytype, comptime target: anytype) ![]const u8 {
+    //     const object = this.object;
+    //     var items = object.value.object.get(this.model_name).?.array.items;
+    //     const searchResult = bn.BinarySearch{ .items = items, .key = key };
+
+    //     const item = switch (@typeInfo(@TypeOf(target))) {
+    //         .ComptimeInt => |_| searchResult.searchByInt(target, bn.BinarySearch.compareById),
+    //         .Pointer => |_| searchResult.searchByString(target, bn.BinarySearch.compareObjectsByStrings),
+    //         else => return error.UnsupportedType,
+    //     };
+
+    //     if (item == null) return error.ObjectDoesNotExists;
+    //     const result = try std.json.stringifyAlloc(this.allocator, items[item.?], .{ .whitespace = .indent_2 });
+    //     return result;
+    // }
 };
 
 pub fn main() !void {
@@ -129,7 +149,7 @@ pub fn main() !void {
     defer allocator.free(str);
     // std.debug.print("{s}\n", .{str});
 
-    const find = try user.findOne("age", 23);
+    const find = try user.findOne("name", "ivan");
     defer allocator.free(find);
     std.debug.print("{s}\n", .{find});
 }
