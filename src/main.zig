@@ -111,21 +111,24 @@ pub const Model = struct {
         }
     }
 
-    // pub fn findOne(this: @This(), comptime key: anytype, comptime target: anytype) ![]const u8 {
-    //     const object = this.object;
-    //     var items = object.value.object.get(this.model_name).?.array.items;
-    //     const searchResult = bn.BinarySearch{ .items = items, .key = key };
+    pub fn getValueString(this: @This(), jsonString: []const u8, key: []const u8) ![]const u8 {
+        const value = try std.json.parseFromSlice(std.json.Value, this.allocator, jsonString, .{});
+        defer value.deinit();
 
-    //     const item = switch (@typeInfo(@TypeOf(target))) {
-    //         .ComptimeInt => |_| searchResult.searchByInt(target, bn.BinarySearch.compareById),
-    //         .Pointer => |_| searchResult.searchByString(target, bn.BinarySearch.compareObjectsByStrings),
-    //         else => return error.UnsupportedType,
-    //     };
+        const result = value.value.object.get(key) orelse return error.KeyNotFound;
+        const result_str = try this.allocator.alloc(u8, result.string.len);
+        std.mem.copy(u8, result_str, result.string);
+        return result_str;
+    }
 
-    //     if (item == null) return error.ObjectDoesNotExists;
-    //     const result = try std.json.stringifyAlloc(this.allocator, items[item.?], .{ .whitespace = .indent_2 });
-    //     return result;
-    // }
+    pub fn getValueInt(this: @This(), jsonString: []const u8, key: []const u8) !i64 {
+        const value = try std.json.parseFromSlice(std.json.Value, this.allocator, jsonString, .{});
+        defer value.deinit();
+
+        const result = value.value.object.get(key) orelse return error.KeyNotFound;
+        return result.integer;
+    }
+
 };
 
 pub fn main() !void {
@@ -149,7 +152,17 @@ pub fn main() !void {
     defer allocator.free(str);
     // std.debug.print("{s}\n", .{str});
 
-    const find = try user.findOne("name", "ivan");
-    defer allocator.free(find);
-    std.debug.print("{s}\n", .{find});
+    const obj = try user.findOne("name", "ivan");
+    defer allocator.free(obj);
+    std.debug.print("{s}\n", .{obj});
+
+    const name = try user.getValueString(obj, "name");
+    defer allocator.free(name);
+    std.debug.print("{s}\n", .{name});
+
+    const id = try user.getValueInt(obj, "id");
+    std.debug.print("{d}\n", .{id});
+
+    const age = try user.getValueInt(obj, "age");
+    std.debug.print("{d}\n", .{age});
 }
