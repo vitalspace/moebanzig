@@ -51,7 +51,7 @@ pub const Moeban = struct {
     }
 
     pub fn model(this: @This(), comptime model_name: []const u8) !Model {
-        const parsed = std.json.parseFromSlice(std.json.Value, this.allocator, this.db_content, .{}) catch unreachable;
+        var parsed = std.json.parseFromSlice(std.json.Value, this.allocator, this.db_content, .{}) catch unreachable;
         const modelInstance = Model{ .db = this, .model_name = model_name, .object = parsed, .allocator = this.allocator };
         return modelInstance;
     }
@@ -129,6 +129,41 @@ pub const Model = struct {
         return result.integer;
     }
 
+    pub fn write(this: @This(), comptime newObject: anytype) !void {
+        // Convert the new object to a JSON string
+        const newObjectJson = try std.json.stringifyAlloc(this.allocator, newObject, .{});
+        defer this.allocator.free(newObjectJson);
+
+        // Parse the JSON string to a JSON value
+        const newObjectValue = try std.json.parseFromSlice(std.json.Value, this.allocator, newObjectJson, .{});
+        defer newObjectValue.deinit();
+
+        // Get the existing model array from the database object
+        var existingModelArray = this.object.value.object.get(this.model_name).?;
+
+        // Append the new object to the existing model array
+        try existingModelArray.array.append(newObjectValue.value);
+
+        // Update the model array in the database object
+
+        var updateModel = this.object.value.object;
+
+        updateModel.put(this.model_name, std.json.Value{ .array = existingModelArray.array }) catch |err| {
+            std.debug.print("Error updating database object: {}\n", .{err});
+            return;
+        };
+
+        // Convert the updated database object to a JSON string
+        const updatedDatabaseJson = try std.json.stringifyAlloc(this.allocator, this.object.value, .{ .whitespace = .indent_2 });
+        defer this.allocator.free(updatedDatabaseJson);
+
+        std.debug.print("{s}\n", .{updatedDatabaseJson});
+
+        // Write the updated database object back to the file
+        const file = try std.fs.cwd().createFile(this.db.db_name, .{ .truncate = true });
+        defer file.close();
+        try file.writer().writeAll(updatedDatabaseJson);
+    }
 };
 
 pub fn main() !void {
@@ -145,7 +180,7 @@ pub fn main() !void {
     const db = try Moeban.init("test.json", allocator);
     defer db.deinit();
 
-    const user = try db.model("users");
+    var user = try db.model("users");
     defer user.object.deinit();
 
     const str = try user.find();
@@ -165,4 +200,8 @@ pub fn main() !void {
 
     const age = try user.getValueInt(obj, "age");
     std.debug.print("{d}\n", .{age});
+
+    const newUser = .{ .id = 1200, .name = "lucas" };
+
+    try user.write(newUser);
 }
